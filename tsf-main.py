@@ -9,6 +9,7 @@ import datetime
 from sktime.forecasting.base import ForecastingHorizon
 from sktime.forecasting.tbats import TBATS
 from sktime.utils.plotting import plot_series
+from sktime.forecasting.model_selection import temporal_train_test_split
 
 ###INPUTS###
 csv_location = "./DataCoSupplyChainDataset.csv"
@@ -30,7 +31,7 @@ prod_demand = {}
 prod_demand[prod_id] = (
     df_sorted[df_sorted["Product Card Id"] == prod_id]
     .groupby("Date")
-    .agg(count=pd.NamedAgg(column="Product Image", aggfunc="count"))
+    .agg(count=pd.NamedAgg(column="Order Item Quantity", aggfunc="sum"))
 )
 prod_demand[prod_id]["date"] = prod_demand[prod_id].index
 prod_demand[prod_id].index = range(prod_demand[prod_id].index.size)
