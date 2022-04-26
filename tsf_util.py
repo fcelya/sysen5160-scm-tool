@@ -133,3 +133,27 @@ def inventory_cost(s, h, b, dist_name, *args):
     dist = dist(*args)
     mu = dist.mean()
     return h * (s - mu) + (h + b) * EBO(s, dist_name, *args)
+
+
+def prepare_df_pareto(df, prod_c, count_c, loc_c):
+    df = df.loc[:, [loc_column, prod_column, count_column]]
+    df = df.groupby(prod_column).agg(
+        count=pd.NamedAgg(column="Order Item Quantity", aggfunc="sum")
+    )
+    df = df.sort_values(by="count", ascending=False)
+    return df
+
+
+def pareto(df, show=False):
+    df["cumperc"] = df["count"].cumsum() / df["count"].sum()
+    pareto = {}
+    for p in df.index:
+        pareto[p] = (df["count"][p], df["cumperc"][p])
+
+    if show:
+        fig, ax = plt.subplots()
+        ax.bar(list(range(len(df.index))), df["count"])
+        ax2 = ax.twinx()
+        ax2.plot(list(range(len(df.index))), df["cumperc"], color="red")
+        plt.show()
+    return pareto
