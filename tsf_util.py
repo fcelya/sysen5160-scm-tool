@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 import scipy.stats as st
 from scipy.optimize import curve_fit
+import pandas as pd
 
 
 def get_cont_dist():
@@ -136,8 +137,8 @@ def inventory_cost(s, h, b, dist_name, *args):
 
 
 def prepare_df_pareto(df, prod_c, count_c, loc_c):
-    df = df.loc[:, [loc_column, prod_column, count_column]]
-    df = df.groupby(prod_column).agg(
+    df = df.loc[:, [loc_c, prod_c, count_c]]
+    df = df.groupby(prod_c).agg(
         count=pd.NamedAgg(column="Order Item Quantity", aggfunc="sum")
     )
     df = df.sort_values(by="count", ascending=False)
