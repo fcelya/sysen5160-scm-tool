@@ -8,9 +8,10 @@ st.set_page_config(page_title="Supply Chain", layout="wide")
 
 
 def p_welcome(st, **state):
-    st.title("Supply Chain Wizard")
-    c1, c2 = st.columns([5, 3])
+    a, b = 3, 3
+    c1, c2 = st.columns([a, b])
     c2.image("./media/welcome.jpg")
+    c1.title("Supply Chain Wizard")
     c1.subheader("")
     c1.subheader("")
     c1.subheader("")
