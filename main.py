@@ -3,6 +3,8 @@ from streamlit_multipage import MultiPage
 import pandas as pd
 import numpy as np
 from scipy import stats
+import tsf_util as tu
+import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Supply Chain", layout="wide")
 
@@ -31,16 +33,23 @@ def p_load_csv(st, **state):
         "Write the header of the following columns as written in your .csv file"
     )
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     _, sc2, _ = st.columns(3)
 
-    product_c = c1.text_input(label="Product Identifier Column")
-    count_c = c2.text_input(label="Amount Bought Per Order Column")
-    location_c = c3.text_input(label="Location Identifier Column")
+    product_c = c1.text_input(label="Product Identifier Column Name")
+    count_c = c2.text_input(label="Amount Bought Per Order Column Name")
+    location_c = c3.text_input(label="Location Identifier Column Name")
+    date_c = c4.text_input(label="Date Column Name")
 
-    if f != None and product_c != None and count_c != None and location_c != None:
+    if (
+        f != None
+        and product_c != None
+        and count_c != None
+        and location_c != None
+        and date_c != None
+    ):
         if sc2.button("Check and save data"):
-            f1, f2, f3 = False, False, False
+            f1, f2, f3, f4 = False, False, False, False
             if product_c in df.columns:
                 c1.success("Product column found!")
                 f1 = True
@@ -56,13 +65,19 @@ def p_load_csv(st, **state):
                 f3 = True
             else:
                 c3.error("Please check the location column name spelling")
-            if f1 and f2 and f3:
+            if date_c in df.columns:
+                c4.success("Date column found!")
+                f4 = True
+            else:
+                c4.error("Please check the date column name spelling")
+            if f1 and f2 and f3 and f4:
                 MultiPage.save(
                     {
                         "df": df,
                         "product column": product_c,
                         "count column": count_c,
                         "location column": location_c,
+                        "date column": date_c,
                     }
                 )
 
@@ -136,10 +151,92 @@ def p_user_input(st, **state):
     pass
 
 
+def p_output(st, **state):
+    df = state["df"]
+    p_col = state["product column"]
+    c_col = state["count column"]
+    l_col = state["location column"]
+    d_col = state["date column"]
+    df = df.loc[:, [p_col, c_col, l_col, d_col]]
+    df[d_col] = pd.to_datetime(df[d_col]).dt.date
+    products = list(set(df[p_col]))
+    locations = list(set(df[l_col]))
+
+    with st.expander("Exploratory Analysis"):
+        analysis = st.selectbox(
+            "What kind of analysis would you like to do?",
+            ["Per product", "Per location"],
+        )
+        if analysis == "Per product":
+            prod = st.selectbox("What product do you want to analyse?", products)
+            df2 = df.loc[df[p_col] == prod, :]
+            locs = tu.aggregate(df2, l_col, c_col)
+            locs = locs.sort_values(by="Units Sold", ascending=False)
+            c1, c2 = st.columns(2)
+            c1.write("This product has been sold at the following locations")
+            c1.write(locs)
+
+            locs["cumperc"] = locs["Units Sold"].cumsum() / locs["Units Sold"].sum()
+            fig, ax = plt.subplots()
+            ax.bar(list(range(len(locs.index))), locs["Units Sold"])
+            ax2 = ax.twinx()
+            ax2.plot(list(range(len(locs.index))), locs["cumperc"], color="red")
+            ax2.set_ylim([0, 1])
+            ax.set_xticks(range(len(locs)))
+            ax.set_xticklabels(locs.index)
+            ax.set_title("Pareto analysis of units sold")
+            plt.setp(ax.get_xticklabels(), rotation=60, horizontalalignment="right")
+            plt.tight_layout()
+            c2.pyplot(fig)
+
+        else:
+            loc = st.selectbox("What location do you want to analyse?", locations)
+            df2 = df.loc[df[l_col] == loc, :]
+            prods = tu.aggregate(df2, p_col, c_col)
+            prods = prods.sort_values(by="Units Sold", ascending=False)
+            c1, c2 = st.columns(2)
+            c1.write("This location has sold the following products")
+            c1.write(prods)
+
+            prods["cumperc"] = prods["Units Sold"].cumsum() / prods["Units Sold"].sum()
+            fig, ax = plt.subplots()
+            ax.bar(list(range(len(prods.index))), prods["Units Sold"])
+            ax2 = ax.twinx()
+            ax2.plot(list(range(len(prods.index))), prods["cumperc"], color="red")
+            ax2.set_ylim([0, 1])
+            ax.set_xticks(range(len(prods)))
+            ax.set_xticklabels(prods.index)
+            ax.set_title("Pareto analysis of units sold")
+            plt.setp(ax.get_xticklabels(), rotation=60, horizontalalignment="right")
+            plt.tight_layout()
+            c2.pyplot(fig)
+
+    with st.expander("Product-Location pair analysis"):
+        prod = st.selectbox(
+            "What product do you want to analyse?", products, key="prodpair"
+        )
+        loc = st.selectbox(
+            "What location do you want to analyse?",
+            list(set(df.loc[df[p_col] == prod, l_col])),
+            key="locpair",
+        )
+
+        df3 = df.loc[df[p_col] == prod, :]
+        df3 = df3.loc[df3[l_col] == loc, :]
+        df3 = tu.aggregate(df3, d_col, c_col)
+        df3.index = pd.to_datetime(df3.index)
+        df3.asfreq("D", fill_value=0)
+        # fig, ax = plt.subplots()
+        fig, ax = df3.plot()
+        st.pyplot(fig)
+    pass
+
+
 app = MultiPage()
 app.st = st
 app.add_app("Welcome to SCW!", p_welcome)
 app.add_app("Demand data input", p_load_csv)
 app.add_app("User data input", p_user_input)
+app.add_app("Analysis output", p_output)
 
 app.run()

@@ -105,6 +105,33 @@ def get_best_distribution(data):
     return best_dist, best_p, params[best_dist]
 
 
+def get_best_distribution_fast(data, min_p):
+    """
+    Input: data as time series
+    Output: best distribution in scipy, pvalue, best fit params
+    """
+    cont_dist = ["chi", "expon", "f", "weibull", "cauchy", "norm", "t"]
+    discrete_dist = ["poisson", "binom"]
+    dist_names = cont_dist + discrete_dist
+    dist_results = []
+    params = {}
+    for dist_name in dist_names:
+        # print(dist_name)
+        param = get_params(dist_name, data)
+        params[dist_name] = param
+        # Applying the Kolmogorov-Smirnov test
+        _, p = st.kstest(data, dist_name, args=param)
+        # print("p value for "+dist_name+" = "+str(p))
+        dist_results.append((dist_name, p))
+        if p > min_p:
+            break
+
+    # select the best fitted distribution
+    best_dist, best_p = max(dist_results, key=lambda item: item[1])
+
+    return best_dist, best_p, params[best_dist]
+
+
 def EBO(s, dist_name, *args):
     # Credits go to Professor Gentsch in ORIE 4160/5160
     dist = getattr(st, dist_name)
@@ -158,3 +185,13 @@ def pareto(df, show=False):
         ax2.plot(list(range(len(df.index))), df["cumperc"], color="red")
         plt.show()
     return pareto
+
+
+def aggregate(df, aggcol, sumcol):
+    loc_list = list(set(df[aggcol]))
+    a = np.zeros(len(loc_list))
+    locs = pd.DataFrame(data=a, index=loc_list, columns=["Units Sold"])
+    for l in loc_list:
+        q = int(np.sum(df.loc[df[aggcol] == l, sumcol]))
+        locs.loc[l, ["Units Sold"]] = q
+    return locs
