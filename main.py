@@ -5,6 +5,7 @@ import numpy as np
 from scipy import stats
 import tsf_util as tu
 import matplotlib.pyplot as plt
+import dataViz as dv
 
 st.set_page_config(page_title="Supply Chain", layout="wide")
 
@@ -28,6 +29,8 @@ def p_load_csv(st, **state):
     if f != None:
         df = pd.read_csv(f, encoding="ISO-8859-1")
         st.write(df.head())
+    else:
+        df = pd.read_csv("./DataCoSupplyChainDataset.csv", encoding="ISO-8859-1")
 
     st.subheader(
         "Write the header of the following columns as written in your .csv file"
@@ -80,6 +83,16 @@ def p_load_csv(st, **state):
                         "date column": date_c,
                     }
                 )
+    elif f is None:
+        MultiPage.save(
+            {
+                "df": df,
+                "product column": "Product Card Id",
+                "count column": "Order Item Quantity",
+                "location column": "Order Region",
+                "date column": "shipping date (DateOrders)",
+            }
+        )
 
 
 def p_user_input(st, **state):
@@ -221,14 +234,15 @@ def p_output(st, **state):
             key="locpair",
         )
 
-        df3 = df.loc[df[p_col] == prod, :]
-        df3 = df3.loc[df3[l_col] == loc, :]
-        df3 = tu.aggregate(df3, d_col, c_col)
-        df3.index = pd.to_datetime(df3.index)
-        df3.asfreq("D", fill_value=0)
-        # fig, ax = plt.subplots()
-        fig, ax = df3.plot()
-        st.pyplot(fig)
+        # df3 = df.loc[df[p_col] == prod, :]
+        # df3 = df3.loc[df3[l_col] == loc, :]
+        # df3 = tu.aggregate(df3, d_col, c_col)
+        # df3.index = pd.to_datetime(df3.index)
+        # df3.asfreq("D", fill_value=0)
+        # # fig, ax = plt.subplots()
+        # fig, ax = df3.plot()
+        # st.pyplot(fig)
+
     pass
 
 
@@ -236,6 +250,7 @@ app = MultiPage()
 app.st = st
 app.add_app("Welcome to SCW!", p_welcome)
 app.add_app("Demand data input", p_load_csv)
+app.add_app("Data visualization", dv.p_dataviz)
 app.add_app("User data input", p_user_input)
 app.add_app("Analysis output", p_output)
 
