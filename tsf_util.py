@@ -7,26 +7,35 @@ warnings.simplefilter("ignore", category=RuntimeWarning)
 import numpy as np
 import matplotlib.pyplot as plt
 
-import scipy.stats as st
+from scipy import stats
 from scipy.optimize import curve_fit
 import pandas as pd
+import streamlit as st
+
+
+@st.cache(suppress_st_warning=True)
+def load_csv(route, encoding="ISO-8859-1"):
+    df = pd.read_csv(route, encoding=encoding)
+    return df
 
 
 def get_cont_dist():
-    return [a[0] for a in st._distr_params.distcont]
+    return [a[0] for a in stats._distr_params.distcont]
 
 
 def get_discrete_dist():
-    return [a[0] for a in st._distr_params.distdiscrete]
+    return [a[0] for a in stats._distr_params.distdiscrete]
 
 
+@st.cache(suppress_st_warning=True)
 def get_params(dist_name, data):
     if dist_name in get_cont_dist():
-        dist = getattr(st, dist_name)
+        dist = getattr(stats, dist_name)
         param = dist.fit(data)
     elif dist_name in get_discrete_dist():
-        dist = getattr(st, dist_name)
-        bins = np.arange(max(data)) - 0.5
+        dist = getattr(stats, dist_name)
+        # print(data)
+        bins = int(np.arange(max(data))) - 0.5
         entries, bin_edges, _ = plt.hist(data, bins=bins, density=True)
         plt.close()
         bin_middles = 0.5 * (bin_edges[1:] + bin_edges[:-1])
@@ -71,10 +80,12 @@ def get_params(dist_name, data):
         if succ:
             param = tuple(param)
     else:
+        print(dist_name)
         raise ValueError("Distribution name not found")
     return param
 
 
+@st.cache(suppress_st_warning=True)
 def get_best_distribution(data):
     """
     Input: data as time series
@@ -95,7 +106,7 @@ def get_best_distribution(data):
         param = get_params(dist_name, data)
         params[dist_name] = param
         # Applying the Kolmogorov-Smirnov test
-        _, p = st.kstest(data, dist_name, args=param)
+        _, p = stats.kstest(data, dist_name, args=param)
         # print("p value for "+dist_name+" = "+str(p))
         dist_results.append((dist_name, p))
 
@@ -105,14 +116,15 @@ def get_best_distribution(data):
     return best_dist, best_p, params[best_dist]
 
 
-def get_best_distribution_fast(data, min_p):
+@st.cache(suppress_st_warning=True)
+def get_best_distribution_fast(data, min_p=0.99):
     """
     Input: data as time series
     Output: best distribution in scipy, pvalue, best fit params
     """
-    cont_dist = ["chi", "expon", "f", "weibull", "cauchy", "norm", "t"]
-    discrete_dist = ["poisson", "binom"]
-    dist_names = cont_dist + discrete_dist
+    cont_dist = ["chi", "expon", "f", "cauchy", "norm", "t"]
+    # discrete_dist = ["poisson", "binom"]
+    dist_names = cont_dist  # + discrete_dist
     dist_results = []
     params = {}
     for dist_name in dist_names:
@@ -120,7 +132,7 @@ def get_best_distribution_fast(data, min_p):
         param = get_params(dist_name, data)
         params[dist_name] = param
         # Applying the Kolmogorov-Smirnov test
-        _, p = st.kstest(data, dist_name, args=param)
+        _, p = stats.kstest(data, dist_name, args=param)
         # print("p value for "+dist_name+" = "+str(p))
         dist_results.append((dist_name, p))
         if p > min_p:
@@ -132,9 +144,10 @@ def get_best_distribution_fast(data, min_p):
     return best_dist, best_p, params[best_dist]
 
 
+@st.cache(suppress_st_warning=True)
 def EBO(s, dist_name, *args):
     # Credits go to Professor Gentsch in ORIE 4160/5160
-    dist = getattr(st, dist_name)
+    dist = getattr(stats, dist_name)
 
     if dist_name in get_discrete_dist():
         epsilon = 0.999999
@@ -156,6 +169,7 @@ def EBO(s, dist_name, *args):
     return tempsum
 
 
+@st.cache(suppress_st_warning=True)
 def inventory_cost(s, h, b, dist_name, *args):
     dist = getattr(st, dist_name)
     dist = dist(*args)
@@ -163,6 +177,7 @@ def inventory_cost(s, h, b, dist_name, *args):
     return h * (s - mu) + (h + b) * EBO(s, dist_name, *args)
 
 
+@st.cache(suppress_st_warning=True)
 def prepare_df_pareto(df, prod_c, count_c, loc_c):
     df = df.loc[:, [loc_c, prod_c, count_c]]
     df = df.groupby(prod_c).agg(
@@ -172,6 +187,7 @@ def prepare_df_pareto(df, prod_c, count_c, loc_c):
     return df
 
 
+@st.cache(suppress_st_warning=True)
 def pareto(df, show=False):
     df["cumperc"] = df["count"].cumsum() / df["count"].sum()
     pareto = {}
@@ -187,8 +203,10 @@ def pareto(df, show=False):
     return pareto
 
 
+# @st.cache(suppress_st_warning=True)
 def aggregate(df, aggcol, sumcol):
-    loc_list = list(set(df[aggcol]))
+    # loc_list = list(set(df[aggcol]))
+    loc_list = df[aggcol].unique()
     a = np.zeros(len(loc_list))
     locs = pd.DataFrame(data=a, index=loc_list, columns=["Units Sold"])
     for l in loc_list:

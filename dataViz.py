@@ -14,6 +14,7 @@ import streamlit as st
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 
 
+#@st.cache(suppress_st_warning=True)
 def p_dataviz(st, **state):
     sns.set(style="ticks", color_codes=True)
     init_notebook_mode(connected=True)
