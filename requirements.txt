@@ -1,6 +1,13 @@
+numpy
 pandas
 matplotlib
 seaborn
 datetime
-sktime
-tbats
+keras
+tensorflow
+plotly
+scipy
+sklearn
+streamlit
+streamlit_multipage
+
