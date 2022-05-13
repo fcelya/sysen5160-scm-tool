@@ -9,5 +9,4 @@ plotly
 scipy
 sklearn
 streamlit
-streamlit_multipage
-
+streamlit-multipage
